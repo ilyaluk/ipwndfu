@@ -56,7 +56,78 @@ class DevicePlatform:
     gadgets: typing.Dict[str, int] = field(default_factory=dict)
     exploit_configs: typing.Dict[str, dict] = field(default_factory=dict)
 
-    def __post_init__(self) -> None:
+    def __post_init__(self):
+        if self.cpid in [0x8940, 0x8947]:
+            self.dfu_image_base = 0x34000000
+            self.dfu_load_base = 0x9FF00000
+            self.recovery_image_base = 0x9FF00000
+            self.recovery_load_base = 0x80000000
+            self.heap_base = 0
+            self.heap_offset = 0
+            self.trampoline_base = 0
+            self.trampoline_offset = 0
+            self.page_offset = 0
+        if self.cpid in [0x8950, 0x8955]:
+            self.dfu_image_base = 0x10000000
+            self.dfu_load_base = 0xBFF00000
+            self.recovery_image_base = 0xBFF00000
+            self.recovery_load_base = 0x80000000
+            self.heap_base = 0
+            self.heap_offset = 0
+            self.trampoline_base = 0
+            self.trampoline_offset = 0
+            self.page_offset = 0
+        if self.cpid == 0x8960:
+            self.dfu_image_base = 0x180380000
+            self.dfu_load_base = 0x180000000  # varies (HACK: test purposes)
+            self.recovery_image_base = 0x83D7F7000  # varies
+            self.recovery_load_base = 0x800000000
+            self.heap_base = 0
+            self.heap_offset = 0
+            self.trampoline_base = 0
+            self.trampoline_offset = 0
+            self.page_offset = 0
+        if self.cpid in [0x8002, 0x8004]:
+            self.dfu_image_base = 0x48818000
+            self.dfu_load_base = 0x80000000
+            self.recovery_image_base = 0x48818000
+            self.recovery_load_base = 0x80000000
+            self.heap_base = 0
+            self.heap_offset = 0
+            self.trampoline_base = 0
+            self.trampoline_offset = 0
+            self.page_offset = 0
+        if self.cpid in [0x8010, 0x8011]:
+            self.dfu_image_base = 0x1800B0000
+            self.dfu_load_base = 0x800000000
+            self.recovery_image_base = 0x1800B0000
+            self.recovery_load_base = 0x800000000
+            self.heap_base = 0x1801B4000
+            self.heap_offset = 0x5180
+            self.trampoline_base = 0
+            self.trampoline_offset = 0
+            self.page_offset = 0
+        if self.cpid in [0x8012, 0x8015]:
+            self.dfu_image_base = 0x18001C000
+            self.dfu_load_base = 0x800000000
+            self.recovery_image_base = 0x18001C000
+            self.recovery_load_base = 0x800000000
+            self.heap_base = 0x1801E8000
+            self.heap_offset = 0x5000
+            self.trampoline_base = 0x180018000
+            self.trampoline_offset = 0x620
+            self.page_offset = 0x400
+        if self.cpid in [0x8000, 0x8003, 0x7000]:
+            self.dfu_image_base = 0x180380000
+            self.dfu_load_base = 0x180000000  # varies (HACK: test purposes)
+            self.recovery_image_base = 0x83D7F7000  # varies
+            self.recovery_load_base = 0x800000000
+            self.heap_base = 0
+            self.heap_offset = 0
+            self.trampoline_base = 0x00000001800c0000
+            self.trampoline_offset = 0
+            self.page_offset = 0
+
         if isinstance(self.usb, dict):
             self.usb = USBConstants(**self.usb)
 
@@ -91,3 +162,4 @@ class DevicePlatform:
 
 
 all_platforms = DevicePlatform.platforms().values()
+
