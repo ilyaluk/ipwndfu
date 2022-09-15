@@ -64,6 +64,17 @@ class DevicePlatform:
     exploit_configs: typing.Dict[str, dict] = field(default_factory=dict)
 
     def __post_init__(self):
+        if self.cpid in [0x8747]:
+            self.dfu_image_base = 0x22000000
+            self.dfu_load_base = 0x08000000
+            self.recovery_image_base = 0xdeadbeef
+            self.recovery_load_base = 0xdeadbeef
+            self.heap_base = 0
+            self.heap_offset = 0
+            self.trampoline_base = 0
+            self.trampoline_offset = 0
+            self.page_offset = 0
+
         if self.cpid in [0x8940, 0x8947]:
             self.dfu_image_base = 0x34000000
             self.dfu_load_base = 0x9FF00000

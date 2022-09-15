@@ -642,6 +642,49 @@ modern_platforms:
           - 0x18001C020
           - 0xBEEFBEEF
 
+- cpid: 0x8747
+  cprv: 0x0
+  scep: 0x10
+  srtg: iBoot-1413.8
+
+  arch: armv7
+  nonce_length: 0x14
+  sep_nonce_length: null
+
+  rom_base: 0x20000000
+  rom_sha1: 7e502652144aab586ab8ee2427518a459359aca1
+  rom_size: 0x20000
+  sram_base: 0x22000000
+  sram_size: 0x20000
+  dram_base: 0x8000000
+  demotion_reg: 0x3d100008
+
+  <<: *dfu_load_s894x
+
+  sigcheck_addr: 0
+  sigcheck_patch: 0
+
+  usb:
+    <<: *usb_magic_32
+    load_address: 0x22000000
+    usb_core_do_io: 0x6F2D
+
+  exploit_configs:
+    checkm8:
+      constants:
+        <<: *checkm8_payload_armv7
+        usb_descriptors: 0x2201A19C
+        usb_serial_number:  0x2201A718
+        usb_create_string_descriptor: 0x67D1
+        usb_srnm_string_descriptor: 0x2201920A
+        payload_destination: 0x2201C800
+        payload_pointer: 0x2201A250
+      large_leak: 0x29
+      overwrite:
+        preamble: 0x760
+        pack: "<20xI4x"
+        args:
+          - 0x22000300
 
 - cpid: 0x8947
   cprv: 0x0

@@ -158,6 +158,8 @@ class PwnedDFUDevice:
         return securerom
 
     def aes(self, data, action, key):
+        if 'CPID:8747' in self.identifier:
+            key &= 0xffffffffdfffffff
         if len(data) % AES_BLOCK_SIZE != 0:
             print(
                 "ERROR: Length of data for AES encryption/decryption must be a multiple of %s."
