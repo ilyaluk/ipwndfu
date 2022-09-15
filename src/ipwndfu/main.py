@@ -136,7 +136,7 @@ def main():
         patch_sigchecks(device, match_device=args.match_device)
 
     elif args.boot:
-        boot(device)
+        boot(device, match_device=args.match_device)
 
     elif args.dump:
         dump(device, args.dump)
@@ -639,7 +639,7 @@ def repair_heap(device=None, match_device=None):
         print("Device not in pwndfu mode!")
 
 
-def patch_sigchecks(device=None, match_device=None):
+def patch_ttbr0(device=None, match_device=None):
     if not device:
         device = dfu.acquire_device(match=match_device)
     serial = get_serial(device.serial_number)
@@ -652,7 +652,52 @@ def patch_sigchecks(device=None, match_device=None):
         ttbr0_base = pwned.ttbr0_base()
         page_offset = pwned.page_offset()
         other_tlbi = pwned.other_tlbi()
+        platform_cache_operation_func = pwned.platform.platform_cache_operation_func
         addr_list = [ttbr0_base, page_offset, other_tlbi]
+        if any(
+            addr == 0
+            for addr in [
+                sigcheck_addr,
+                sigcheck_patch,
+                trampoline_base,
+                ttbr0_base,
+            ]
+        ):
+            print("Device not supported for --patch-ttbr0")
+            return
+        page = pwned.read_memory_uint64(ttbr0_base + page_offset)
+        if page == 0x6000000100000625:
+            print("TTBR0 Already Patched!")
+            return
+        shellcode = checkm8.prepare_shellcode("patch_ttbr_page_arm64", addr_list)
+        pwned.write_memory(trampoline_base + trampoline_offset, shellcode)
+        if platform_cache_operation_func:
+            pwned.execute(0, platform_cache_operation_func, 3, trampoline_base, 4096)
+        pwned.execute(0, trampoline_base + trampoline_offset)
+        pwned.execute(
+            0, trampoline_base + trampoline_offset + 0x48
+        )  # offset of _inv_tlbi
+        page = pwned.read_memory_uint64(ttbr0_base + page_offset)
+        if page == 0x6000000100000625:
+            print("Successfully patched TTBR0!")
+        else:
+            print("Failed to patch TTBR0!")
+    else:
+        print("Device not in pwndfu mode!")
+
+def patch_sigchecks(device=None, match_device=None):
+    if not device:
+        device = dfu.acquire_device(match=match_device)
+    serial = get_serial(device.serial_number)
+    if serial.pwned:
+        pwned = usbexec.PwnedUSBDevice()
+        sigcheck_addr = pwned.platform.sigcheck_addr
+        sigcheck_patch = pwned.platform.sigcheck_patch
+        trampoline_base = pwned.trampoline_base()
+        trampoline_offset = pwned.trampoline_offset()
+        ttbr0_base = pwned.ttbr0_base()
+        effective_prod_addr = pwned.platform.effective_prod_addr
+        effective_prod_patch = pwned.platform.effective_prod_patch
         if any(
             addr == 0
             for addr in [
@@ -667,10 +712,11 @@ def patch_sigchecks(device=None, match_device=None):
         if pwned.read_memory_uint32(sigcheck_addr) == sigcheck_patch:
             print("Signature checks are already patched out!")
             return
-        shellcode = checkm8.prepare_shellcode("patch_ttbr_page_arm64", addr_list)
-        pwned.write_memory(trampoline_base + trampoline_offset, shellcode)
-        pwned.execute(0, trampoline_base + trampoline_offset)
+        patch_ttbr0(device, match_device)
         pwned.write_memory_uint32(sigcheck_addr, sigcheck_patch)
+        # allow demotion image validation
+        if effective_prod_addr and effective_prod_addr:
+            pwned.write_memory_uint32(effective_prod_addr, effective_prod_patch)
         pwned.execute(
             0, trampoline_base + trampoline_offset + 0x48
         )  # offset of _inv_tlbi
@@ -681,61 +727,37 @@ def patch_sigchecks(device=None, match_device=None):
     else:
         print("Device not in pwndfu mode!")
 
-
-def boot(device=None):
+def boot(device=None, match_device=None):
     if not device:
-        device = dfu.acquire_device()
-
-    serial_number = device.serial_number
-    dfu.release_device(device)
-
-    if (
-        "CPID:8015" not in serial_number
-        and not any(f"BDID:{bdid}" in serial_number for bdid in ["6", "14"])
-    ) or "PWND:[checkm8]" not in serial_number:
-        print(serial_number)
-        print(
-            "ERROR: Option --boot is currently only supported on iPhone X pwned with checkm8.",
-            file=stderr,
-        )
-    else:
-        heap_base = 0x1801E8000
-        heap_write_offset = 0x5000
-        calculate_block_checksum = 0x10000D4EC
-        heap_check_all = 0x10000DB98
-        heap_state = 0x1800086A0
-        nand_boot_jump = 0x10000188C
-        bootstrap_task_lr = 0x180015F88
-        dfu_bool = 0x180087870
-        dfu_notify = 0x1000098B4
-        dfu_state = 0x1800085E0
-        trampoline = 0x180018000
-        block1 = pack("<8Q", 0, 0, 0, heap_state, 2, 132, 128, 0)
-        block2 = pack("<8Q", 0, 0, 0, heap_state, 2, 8, 128, 0)
-        device = usbexec.PwnedUSBDevice()
-        device.write_memory(heap_base + heap_write_offset, block1)
-        device.write_memory(heap_base + heap_write_offset + 0x80, block2)
-        device.write_memory(heap_base + heap_write_offset + 0x100, block2)
-        device.write_memory(heap_base + heap_write_offset + 0x180, block2)
-        device.execute(0, calculate_block_checksum, heap_base + heap_write_offset)
-        device.execute(0, calculate_block_checksum, heap_base + heap_write_offset + 0x80)
-        device.execute(0, calculate_block_checksum, heap_base + heap_write_offset + 0x100)
-        device.execute(0, calculate_block_checksum, heap_base + heap_write_offset + 0x180)
-        device.execute(0, heap_check_all)
-        print("Heap repaired.")
-
-        with open("bin/t8015_shellcode_arm64.bin") as f:
-            shellcode = f.read()
-
-            device.write_memory(
-                trampoline, checkm8.asm_arm64_branch(trampoline, trampoline + 0x400)
-            )
-            device.write_memory(trampoline + 0x400, shellcode)
-
-            device.write_memory_ptr(bootstrap_task_lr, nand_boot_jump)
-            device.write_memory(dfu_bool, "\x01")
-            device.execute(0, dfu_notify, dfu_state)
-            print("Booted.")
+        device = dfu.acquire_device(match=match_device)
+    serial = get_serial(device.serial_number)
+    if serial.pwned:
+        pwned = usbexec.PwnedUSBDevice()
+        trampoline_base = pwned.trampoline_base()
+        trampoline_offset = pwned.trampoline_offset()
+        platform_set_dfu_status_func = pwned.platform.platform_set_dfu_status_func
+        force_dfu_sbfx_addr = pwned.platform.force_dfu_sbfx_addr
+        platform_cache_operation_func = pwned.platform.platform_cache_operation_func
+        boot_handoff_trampoline = pwned.platform.boot_handoff_trampoline
+        memcpy_func = pwned.platform.memcpy_func
+        addr_list = [platform_set_dfu_status_func, force_dfu_sbfx_addr, memcpy_func, boot_handoff_trampoline]
+        if any(
+            addr == 0
+            for addr in [
+                platform_set_dfu_status_func,
+                force_dfu_sbfx_addr,
+                boot_handoff_trampoline,
+                memcpy_func,
+            ]
+        ):
+            print("Device not supported for --patch-sigchecks")
+            return
+        shellcode = checkm8.prepare_shellcode("boot_arm64", addr_list)
+        pwned.write_memory(trampoline_base + trampoline_offset, shellcode)
+        if platform_cache_operation_func:
+          pwned.execute(0, platform_cache_operation_func, 3, trampoline_base, 4096)
+        pwned.execute(0, trampoline_base + trampoline_offset)
+        print("Booted.")
 
 
 def dump_nor(arg):

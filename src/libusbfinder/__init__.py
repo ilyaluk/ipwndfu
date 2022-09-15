@@ -96,7 +96,7 @@ def apply_patches(binary: bytes, patches):
 def libusb1_path_internal() -> Union[os.PathLike[str], str, None]:
     version = platform.mac_ver()[0]
     # HACK to support macOS 10.15
-    if any(ver in version for ver in ["10.15", "10.16", "11."]):
+    if any(ver in version for ver in ["10.15", "10.16", "11.", "12."]):
         version = "10.14"
     if version == "":
         # We're not running on a Mac.
@@ -129,7 +129,6 @@ def libusb1_path_internal() -> Union[os.PathLike[str], str, None]:
                     if not dylib_file:
                         print("ERROR: Unable to extract libusb1 bottle")
                         sys.exit(1)
-
                     patched_dylib = apply_patches(
                         dylib_file.read(), config.dylib_patches
                     )

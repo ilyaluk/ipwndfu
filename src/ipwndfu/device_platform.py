@@ -36,8 +36,6 @@ class DevicePlatform:
     nonce_length: int
     sep_nonce_length: Optional[int]
     demotion_reg: int
-    sigcheck_addr: int
-    sigcheck_patch: int
     dfu_image_base: int
     dfu_load_base: int
     recovery_image_base: int
@@ -50,6 +48,15 @@ class DevicePlatform:
     page_offset: int = 0
     ttbr0_base: int = 0
     other_tlbi: bool = False
+    sigcheck_addr: int = 0
+    sigcheck_patch: int = 0
+    effective_prod_addr: int = 0
+    effective_prod_patch: int = 0
+    platform_cache_operation_func: int = 0
+    platform_set_dfu_status_func: int = 0
+    force_dfu_sbfx_addr: int = 0
+    boot_handoff_trampoline: int = 0
+    memcpy_func: int = 0
     heap_state: int = 0
     calculate_block_checksum: int = 0
     heap_check_all: int = 0
@@ -124,9 +131,12 @@ class DevicePlatform:
             self.recovery_load_base = 0x800000000
             self.heap_base = 0
             self.heap_offset = 0
-            self.trampoline_base = 0x00000001800c0000
+            self.trampoline_base = 0x1800E0000
             self.trampoline_offset = 0
-            self.page_offset = 0
+            self.page_offset = 0x400
+            self.ttbr0_base = 0x1800C8000
+            self.other_tlbi = True
+            self.boot_handoff_trampoline = 0x100009000
 
         if isinstance(self.usb, dict):
             self.usb = USBConstants(**self.usb)
